@@ -6,8 +6,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,8 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.project_audr.data.local.AudioRecordEntity
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Upload
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,8 +31,11 @@ fun AudioListScreen(
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var recordToDelete by remember { mutableStateOf<AudioRecordEntity?>(null) }
+    var recordToRename by remember { mutableStateOf<AudioRecordEntity?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showFilterMenu by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -114,7 +118,8 @@ fun AudioListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Новая запись")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -195,13 +200,57 @@ fun AudioListScreen(
                                 record = record,
                                 onClick = { onRecordClick(record) },
                                 onFavoriteClick = { viewModel.toggleFavorite(record) },
-                                onDeleteClick = { recordToDelete = record }
+                                onDeleteClick = { recordToDelete = record },
+                                onRenameClick = { recordToRename = record }
                             )
                         }
                     }
                 }
             }
 
+            // Диалог переименования с проверкой на пустоту
+            recordToRename?.let { record ->
+                var newTitle by remember { mutableStateOf(record.title) }
+
+                AlertDialog(
+                    onDismissRequest = { recordToRename = null },
+                    title = { Text("Переименовать") },
+                    text = {
+                        OutlinedTextField(
+                            value = newTitle,
+                            onValueChange = { newTitle = it },
+                            label = { Text("Новое название") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = newTitle.isBlank()
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            if (newTitle.isBlank()) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Название записи не может быть пустым",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            } else {
+                                viewModel.renameRecord(record, newTitle.trim())
+                                recordToRename = null
+                            }
+                        }) {
+                            Text("Сохранить")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { recordToRename = null }) {
+                            Text("Отмена")
+                        }
+                    }
+                )
+            }
+
+            // Диалог удаления
             recordToDelete?.let { record ->
                 AlertDialog(
                     onDismissRequest = { recordToDelete = null },

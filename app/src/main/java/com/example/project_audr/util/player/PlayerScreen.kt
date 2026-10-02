@@ -1,9 +1,11 @@
 package com.example.project_audr.util.player
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Forward10
@@ -19,10 +21,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.compareTo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,9 @@ fun PlayerScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
@@ -83,6 +88,48 @@ fun PlayerScreen(
         )
     }
 
+    // Диалог переименования
+    if (showRenameDialog) {
+        var newTitle by remember { mutableStateOf(record?.title ?: "") }
+
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Переименовать") },
+            text = {
+                OutlinedTextField(
+                    value = newTitle,
+                    onValueChange = { newTitle = it },
+                    label = { Text("Новое название") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = newTitle.isBlank()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newTitle.isBlank()) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Название записи не может быть пустым",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    } else {
+                        viewModel.renameRecord(newTitle.trim())
+                        showRenameDialog = false
+                    }
+                }) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -93,6 +140,14 @@ fun PlayerScreen(
                     }
                 },
                 actions = {
+                    // Переименовать
+                    IconButton(onClick = { showRenameDialog = true }) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Переименовать",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     // Избранное
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(
@@ -121,7 +176,8 @@ fun PlayerScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -131,7 +187,6 @@ fun PlayerScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Название
             Text(
                 text = record?.title ?: "Загрузка...",
                 fontSize = 24.sp,
@@ -141,7 +196,6 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Дата создания
             record?.let {
                 Text(
                     text = formatDate(it.dateCreated),
@@ -152,7 +206,6 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Прогресс-бар
             Slider(
                 value = if (playerState.durationMs > 0)
                     playerState.currentPositionMs.toFloat() / playerState.durationMs
@@ -164,7 +217,6 @@ fun PlayerScreen(
                 enabled = playerState.isPrepared
             )
 
-            // Время
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -175,12 +227,10 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Кнопки управления
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Перемотка назад на 5 сек
                 IconButton(
                     onClick = { viewModel.skipBackward() },
                     enabled = playerState.isPrepared
@@ -194,7 +244,6 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.width(24.dp))
 
-                // Play/Pause
                 FilledIconButton(
                     onClick = { viewModel.playPause() },
                     enabled = playerState.isPrepared,
@@ -205,14 +254,13 @@ fun PlayerScreen(
                             Icons.Default.Stop
                         else
                             Icons.Default.PlayArrow,
-                        contentDescription = if (playerState.isPlaying) "Пауза" else "Воспроизвести",
+                        contentDescription = if (playerState.isPlaying) "Пауза" else "Продолжить",
                         modifier = Modifier.size(48.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(24.dp))
 
-                // Перемотка вперёд на 5 сек
                 IconButton(
                     onClick = { viewModel.skipForward() },
                     enabled = playerState.isPrepared
@@ -227,7 +275,6 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Индикатор загрузки
             if (!playerState.isPrepared && error == null) {
                 CircularProgressIndicator()
             }

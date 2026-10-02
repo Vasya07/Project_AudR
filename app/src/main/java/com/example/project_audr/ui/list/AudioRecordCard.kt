@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Mic
@@ -25,6 +26,7 @@ fun AudioRecordCard(
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onRenameClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -69,6 +71,7 @@ fun AudioRecordCard(
                 )
             }
 
+            // Избранное
             IconButton(onClick = onFavoriteClick) {
                 Icon(
                     imageVector = if (record.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -77,6 +80,16 @@ fun AudioRecordCard(
                 )
             }
 
+            // Переименовать
+            IconButton(onClick = onRenameClick) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Переименовать",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Удалить
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     imageVector = Icons.Default.Delete,

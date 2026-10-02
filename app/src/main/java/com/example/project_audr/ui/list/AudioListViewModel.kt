@@ -109,6 +109,17 @@ class AudioListViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
+    fun renameRecord(record: AudioRecordEntity, newTitle: String) {
+        viewModelScope.launch {
+            try {
+                val updated = record.copy(title = newTitle)
+                repository?.updateRecord(updated)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
     private fun applySortAndFilter(
         records: List<AudioRecordEntity>,
         sortOrder: SortOrder,

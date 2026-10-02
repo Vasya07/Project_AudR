@@ -150,10 +150,11 @@ class AudioListViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    fun deleteSelected() {
+    fun deleteSelected(onDeleted: (Int) -> Unit = {}) {
         viewModelScope.launch {
             try {
                 val current = _uiState.value
+                val count = current.selectedIds.size
                 current.selectedIds.forEach { id ->
                     val record = current.allRecords.find { it.id == id }
                     if (record != null) {
@@ -163,6 +164,7 @@ class AudioListViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
                 clearSelection()
+                onDeleted(count)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

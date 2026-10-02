@@ -38,6 +38,7 @@ fun AudioListScreen(
     var showFilterMenu by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -51,7 +52,7 @@ fun AudioListScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { viewModel.deleteSelected() }) {
+                        IconButton(onClick = { showDeleteSelectedDialog = true }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Удалить",
@@ -140,11 +141,13 @@ fun AudioListScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Новая запись")
+            if (!uiState.isSelectionMode) {
+                FloatingActionButton(
+                    onClick = onAddClick,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Новая запись")
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -154,19 +157,21 @@ fun AudioListScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    viewModel.searchRecords(it)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                placeholder = { Text("Поиск записей...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true
-            )
+            if (!uiState.isSelectionMode) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = {
+                        searchQuery = it
+                        viewModel.searchRecords(it)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    placeholder = { Text("Поиск записей...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true
+                )
+            }
 
             when {
                 uiState.isLoading -> {
@@ -286,6 +291,41 @@ fun AudioListScreen(
                 )
             }
 
+            // Диалог подтверждения удаления нескольких записей
+            if (showDeleteSelectedDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteSelectedDialog = false },
+                    title = { Text("Удалить записи?") },
+                    text = {
+                        Text(
+                            "Будет удалено ${uiState.selectedIds.size} " +
+                                    "${pluralizeRecords(uiState.selectedIds.size)}. " +
+                                    "Это действие нельзя отменить."
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.deleteSelected { count ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Удалено: $count ${pluralizeRecords(count)}",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            }
+                            showDeleteSelectedDialog = false
+                        }) {
+                            Text("Удалить", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteSelectedDialog = false }) {
+                            Text("Отмена")
+                        }
+                    }
+                )
+            }
+
             // Диалог удаления
             recordToDelete?.let { record ->
                 AlertDialog(
@@ -308,5 +348,13 @@ fun AudioListScreen(
                 )
             }
         }
+    }
+}
+
+private fun pluralizeRecords(count: Int): String {
+    return when {
+        count % 10 == 1 && count % 100 != 11 -> "запись"
+        count % 10 in 2..4 && (count % 100 < 10 || count % 100 >= 20) -> "записи"
+        else -> "записей"
     }
 }

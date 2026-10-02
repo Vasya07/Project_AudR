@@ -19,7 +19,9 @@ data class AudioListUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val sortOrder: SortOrder = SortOrder.DATE_NEWEST,
-    val filter: RecordFilter = RecordFilter.ALL
+    val filter: RecordFilter = RecordFilter.ALL,
+    val isSelectionMode: Boolean = false,
+    val selectedIds: Set<Int> = emptySet()
 )
 
 class AudioListViewModel(application: Application) : AndroidViewModel(application) {
@@ -114,6 +116,53 @@ class AudioListViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val updated = record.copy(title = newTitle)
                 repository?.updateRecord(updated)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
+    }
+
+    fun enterSelectionMode(record: AudioRecordEntity) {
+        _uiState.value = _uiState.value.copy(
+            isSelectionMode = true,
+            selectedIds = setOf(record.id)
+        )
+    }
+
+    fun toggleSelection(record: AudioRecordEntity) {
+        val current = _uiState.value
+        val newSelected = if (record.id in current.selectedIds) {
+            current.selectedIds - record.id
+        } else {
+            current.selectedIds + record.id
+        }
+
+        _uiState.value = current.copy(
+            selectedIds = newSelected,
+            isSelectionMode = newSelected.isNotEmpty()
+        )
+    }
+
+    fun clearSelection() {
+        _uiState.value = _uiState.value.copy(
+            isSelectionMode = false,
+            selectedIds = emptySet()
+        )
+    }
+
+    fun deleteSelected() {
+        viewModelScope.launch {
+            try {
+                val current = _uiState.value
+                current.selectedIds.forEach { id ->
+                    val record = current.allRecords.find { it.id == id }
+                    if (record != null) {
+                        val file = java.io.File(record.filePath)
+                        if (file.exists()) file.delete()
+                        repository?.deleteRecord(record)
+                    }
+                }
+                clearSelection()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

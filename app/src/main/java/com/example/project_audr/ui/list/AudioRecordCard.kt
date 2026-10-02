@@ -1,8 +1,9 @@
 package com.example.project_audr.ui.list
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -24,16 +25,27 @@ import java.util.Locale
 fun AudioRecordCard(
     record: AudioRecordEntity,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onRenameClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier
@@ -41,6 +53,17 @@ fun AudioRecordCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Индикатор выбора
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Выбрано",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             Icon(
                 imageVector = if (record.isImported) Icons.Default.Upload else Icons.Default.Mic,
                 contentDescription = if (record.isImported) "Импортировано" else "Записано",
@@ -71,31 +94,31 @@ fun AudioRecordCard(
                 )
             }
 
-            // Избранное
-            IconButton(onClick = onFavoriteClick) {
-                Icon(
-                    imageVector = if (record.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Избранное",
-                    tint = if (record.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // Кнопки (скрыты в режиме выбора)
+            if (!isSelected) {
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        imageVector = if (record.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Избранное",
+                        tint = if (record.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            // Переименовать
-            IconButton(onClick = onRenameClick) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Переименовать",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+                IconButton(onClick = onRenameClick) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Переименовать",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-            // Удалить
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Удалить",
-                    tint = MaterialTheme.colorScheme.error
-                )
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Удалить",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

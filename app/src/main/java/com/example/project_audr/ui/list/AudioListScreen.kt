@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,77 +41,103 @@ fun AudioListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("AudR — Голосовые заметки") },
-                actions = {
-                    // Импорт
-                    IconButton(onClick = onImportClick) {
-                        Icon(Icons.Default.Upload, contentDescription = "Импорт")
-                    }
-                    // Сортировка
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Сортировка")
+            if (uiState.isSelectionMode) {
+                // Режим множественного выбора
+                TopAppBar(
+                    title = { Text("Выбрано: ${uiState.selectedIds.size}") },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Отмена")
                         }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            SortOrder.entries.forEach { order ->
-                                DropdownMenuItem(
-                                    text = { Text(order.label) },
-                                    leadingIcon = {
-                                        if (uiState.sortOrder == order) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        viewModel.setSortOrder(order)
-                                        showSortMenu = false
-                                    }
-                                )
-                            }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.deleteSelected() }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Удалить",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
-                    }
-                    // Фильтр
-                    Box {
-                        IconButton(onClick = { showFilterMenu = true }) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Фильтр")
-                        }
-                        DropdownMenu(
-                            expanded = showFilterMenu,
-                            onDismissRequest = { showFilterMenu = false }
-                        ) {
-                            RecordFilter.entries.forEach { filter ->
-                                DropdownMenuItem(
-                                    text = { Text(filter.label) },
-                                    leadingIcon = {
-                                        if (uiState.filter == filter) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        viewModel.setFilter(filter)
-                                        showFilterMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 )
-            )
+            } else {
+                // Обычный режим
+                TopAppBar(
+                    title = { Text("AudR — Голосовые заметки") },
+                    actions = {
+                        // Импорт
+                        IconButton(onClick = onImportClick) {
+                            Icon(Icons.Default.Upload, contentDescription = "Импорт")
+                        }
+                        // Сортировка
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Сортировка")
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                SortOrder.entries.forEach { order ->
+                                    DropdownMenuItem(
+                                        text = { Text(order.label) },
+                                        leadingIcon = {
+                                            if (uiState.sortOrder == order) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setSortOrder(order)
+                                            showSortMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        // Фильтр
+                        Box {
+                            IconButton(onClick = { showFilterMenu = true }) {
+                                Icon(Icons.Default.FilterList, contentDescription = "Фильтр")
+                            }
+                            DropdownMenu(
+                                expanded = showFilterMenu,
+                                onDismissRequest = { showFilterMenu = false }
+                            ) {
+                                RecordFilter.entries.forEach { filter ->
+                                    DropdownMenuItem(
+                                        text = { Text(filter.label) },
+                                        leadingIcon = {
+                                            if (uiState.filter == filter) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setFilter(filter)
+                                            showFilterMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -198,10 +226,18 @@ fun AudioListScreen(
                         items(uiState.records, key = { it.id }) { record ->
                             AudioRecordCard(
                                 record = record,
-                                onClick = { onRecordClick(record) },
+                                onClick = {
+                                    if (uiState.isSelectionMode) {
+                                        viewModel.toggleSelection(record)
+                                    } else {
+                                        onRecordClick(record)
+                                    }
+                                },
+                                onLongClick = { viewModel.enterSelectionMode(record) },
                                 onFavoriteClick = { viewModel.toggleFavorite(record) },
                                 onDeleteClick = { recordToDelete = record },
-                                onRenameClick = { recordToRename = record }
+                                onRenameClick = { recordToRename = record },
+                                isSelected = record.id in uiState.selectedIds
                             )
                         }
                     }
